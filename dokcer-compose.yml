@@ -1,0 +1,13 @@
+services:
+  db:
+    image: postgres:16
+    container_name: qasim-lab-db
+    env_file:
+      - ./db/.env
+    ports:
+      - "${POSTGRES_PORT}:5432"
+    volumes:
+      - qasim_lab_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  qasim_lab_postgres_data:
