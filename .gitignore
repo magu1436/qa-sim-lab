@@ -1,2 +1,29 @@
+# OS / Editor
 .vscode/*
 !.vscode/settings.json
+
+# Python / Django
+.venv/
+__pycache__/
+*.py[cod]
+*.sqlite3
+.env
+
+# Node / Vite
+node_modules/
+dist/
+.env.local
+.env.*.local
+
+# Rust
+target/
+
+# QASim Lab generated files
+bin/
+logs/
+media/
+
+# CUDA / build artifacts
+*.ptx
+*.cubin
+*.fatbin
