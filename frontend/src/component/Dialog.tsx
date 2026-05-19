@@ -17,6 +17,9 @@ type DialogProps = {
     actions?: ActionsProps,
 }
 
+/**
+ * QASim Lab 共通で使用するカスタムダイアログコンポーネント
+ */
 const Dialog: FC<DialogProps> = ({ open, onClose, title, children, actions }) => {
     return (
         <MUIDialog open={open} onClose={onClose}>
