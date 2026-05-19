@@ -1,5 +1,5 @@
 import { createBrowserRouter, createRoutesFromElements, Route } from "react-router";
-import Home from "../../feature/home";
+import Home from "@/feature/home";
 
 const basic = createBrowserRouter(
   createRoutesFromElements(
