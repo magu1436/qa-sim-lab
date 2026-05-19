@@ -7,6 +7,7 @@ export default defineConfig({
   plugins: [react()],
 
   resolve: {
+    tsconfigPaths: true,
     alias: {
       '@': fileURLToPath(new URL("./src", import.meta.url)),
     },
