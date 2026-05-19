@@ -1,6 +1,7 @@
 import type { FC } from "react"
 
 import { Button, DialogActions, DialogContent, DialogTitle, Dialog as MUIDialog } from "@mui/material"
+import type React from "react";
 
 type ActionsProps = {
     submitButtonlabel: string,
@@ -13,7 +14,7 @@ type DialogProps = {
     open: boolean,
     onClose: () => void,
     title: string,
-    children: React.ReactNode[],
+    children: React.ReactNode[] | React.ReactNode,
     actions?: ActionsProps,
 }
 
