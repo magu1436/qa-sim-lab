@@ -1,5 +1,5 @@
 import { TextField } from "@mui/material";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type FC } from "react";
 import Dialog from "@/component/Dialog";
 import PasswordTextField from "@/component/PasswordTextField";
 import DisabledUserError from "@/feature/user/error/login/DisabledUserError";
@@ -8,8 +8,13 @@ import NotGivenPasswordError from "@/feature/user/error/login/NotGivenPasswordEr
 import NotGivenStudentIdError from "@/feature/user/error/login/NotGivenStudentIdError";
 import useLoginMutation from "@/feature/user/hook/login";
 
-const LoginDialog = (open: boolean, setOpen: React.Dispatch<React.SetStateAction<boolean>>) => {
-    
+type LoginDialogProps = {
+    open: boolean,
+    setOpen: React.Dispatch<React.SetStateAction<boolean>>,
+};
+
+const LoginDialog: FC<LoginDialogProps> = ({ open, setOpen }) => {
+
   const [studentId, setStudentId] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [studentIdHelperText, setStudentIdHelperText] = useState<string>();
