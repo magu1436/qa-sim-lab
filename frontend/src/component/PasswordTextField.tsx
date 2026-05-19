@@ -10,6 +10,7 @@ type PasswordTextFieldProps = {
     variant?: TextFieldVariants,
     helperText?: string,
     placeHolder?: string,
+    error?: boolean,
 }
 
 /**
@@ -24,6 +25,7 @@ const PasswordTextField: FC<PasswordTextFieldProps> = ({
     variant,
     helperText,
     placeHolder,
+    error,
 }) => {
 
     const [ showPassword, setShowPassword ] = useState(false);
@@ -53,6 +55,7 @@ const PasswordTextField: FC<PasswordTextFieldProps> = ({
                     </InputAdornment>)
                 }
             }}
+            error={error}
         />
     )
 };
