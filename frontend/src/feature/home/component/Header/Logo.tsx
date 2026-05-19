@@ -2,7 +2,7 @@ import { Box, type SxProps } from "@mui/material";
 import logo from "@/assets/logo.png";
 
 type LogoProps = {
-  sx: SxProps;
+  sx?: SxProps;
 };
 
 const Logo = ({ sx }: LogoProps) => {
