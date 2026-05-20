@@ -8,7 +8,7 @@ const LoginButton = () => {
 
     return (
         <>
-            <Button type="submit" onClick={() => setOpen(true)}>ログイン</Button>
+            <Button variant="contained" type="submit" onClick={() => setOpen(true)}>ログイン</Button>
             <LoginDialog open={open} setOpen={setOpen} />
         </>
     );
