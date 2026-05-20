@@ -1,4 +1,4 @@
-import axios, { AxiosError } from "axios";
+import { AxiosError } from "axios";
 import type { SignUpApi } from "../type/api";
 import ConflictError from "../error/signup/ConflictError";
 import InvalidMailFormError from "../error/signup/InvalidMailFormError";
