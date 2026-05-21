@@ -1,22 +1,19 @@
-import { Stack, type SxProps } from "@mui/material";
-import Logo from "./component/Header/Logo";
-import Buttons from "./component/Header/Buttons/Buttons";
+import { CssBaseline, Stack, type SxProps } from "@mui/material";
+import Header from "./component/Header/Header";
 
 const Home = () => {
   const sx: SxProps = {
-    height: "15vh",
+    height: "100vh",
     width: "100%",
-    justifyContent: "space-between",
-    alignItems: "center",
-    borderBottom: 1,
   };
   return (
-    <div>
-      <Stack sx={sx} direction="row">
-        <Logo />
-        <Buttons />
+    <>
+      <Stack sx={sx}>
+        <CssBaseline>
+          <Header />
+        </CssBaseline>
       </Stack>
-    </div>
+    </>
   );
 };
 
