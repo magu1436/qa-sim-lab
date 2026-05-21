@@ -9,3 +9,10 @@ export type SignUpApi = {
   mail: string;
   password: string;
 };
+
+export type UserApi = {
+  id: number;
+  student_id: string;
+  name: string;
+  mail: string;
+}
