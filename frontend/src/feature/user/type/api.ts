@@ -15,4 +15,10 @@ export type UserApi = {
   student_id: string;
   name: string;
   mail: string;
-}
+};
+
+export type UserMePatchApi = {
+  name?: string;
+  student_id?: string;
+  mail?: string;
+};

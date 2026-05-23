@@ -1,6 +1,6 @@
-import { IconButton, Stack, Typography, type SxProps } from "@mui/material";
-import Icon from "@mui/icons-material/ManageAccounts";
+import { Stack, Typography, type SxProps } from "@mui/material";
 import useAuthUser from "@/feature/user/hook/useAuthUser";
+import UserMenuButton from "./UserMenu/UserMenuButton";
 
 const CurrentUserBadge = () => {
   const { user } = useAuthUser();
@@ -16,9 +16,7 @@ const CurrentUserBadge = () => {
           <Typography>{user?.name ?? "Anonymous"}</Typography>
           <Typography>{user?.studentId ?? "xCDIMxxxx"}</Typography>
         </Stack>
-        <IconButton>
-          <Icon />
-        </IconButton>
+        <UserMenuButton />
       </Stack>
     </>
   );

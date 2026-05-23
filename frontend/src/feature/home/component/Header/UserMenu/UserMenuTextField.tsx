@@ -9,6 +9,8 @@ type UserMenuTextFieldProps = {
   helperText?: string;
   variant?: TypographyVariant;
   label?: string;
+  placeHolder?: string;
+  type?: React.HTMLInputTypeAttribute;
 };
 
 const UserMenuTextField: FC<UserMenuTextFieldProps> = ({
@@ -19,6 +21,8 @@ const UserMenuTextField: FC<UserMenuTextFieldProps> = ({
   helperText,
   variant,
   label,
+  placeHolder,
+  type,
 }) => {
   if (!isInput) {
     return <Typography variant={variant}>{value}</Typography>;
@@ -29,11 +33,14 @@ const UserMenuTextField: FC<UserMenuTextFieldProps> = ({
   return (
     <TextField
       variant="outlined"
+      type={type}
       label={label}
       value={value}
       onChange={onChange}
       onBlur={onBlur}
       helperText={helperText}
+      error={helperText !== undefined}
+      placeholder={placeHolder}
       slotProps={{
         input: {
           sx: typographySx,

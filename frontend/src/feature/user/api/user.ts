@@ -1,6 +1,7 @@
 import { AxiosError } from "axios";
 import type { User } from "../type/user";
 import UnauthorizedError from "@/error/common_errors/UnauthorizedError";
+import type { UserMePatchApi } from "../type/api";
 
 class UserMeApi {
   static get = async (): Promise<User> => {
@@ -30,6 +31,22 @@ class UserMeApi {
       throw error;
     }
   };
+
+  static patch = async (data: UserMePatchApi): Promise<void> => {
+    try {// TODO: user/me with PATCH method
+    console.log("user/me: ", data);
+    return Promise.resolve();
+    
+    } catch(error) {
+      if (error instanceof AxiosError) {
+        switch (error.response?.data.code) {
+          case "UNAUTHORIZED":
+            throw new UnauthorizedError("not logged in");
+        }
+      }
+      throw error;
+    }
+  }
 }
 
 export default UserMeApi;
