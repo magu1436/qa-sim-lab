@@ -1,33 +1,31 @@
-import { Paper, Table, TableBody, TableContainer } from "@mui/material";
-import TaskTableHeader from "./TaskTableHeader";
-import useTableTasks from "@/feature/task/hook/useTableTasks";
-import TableRow from "./TableRow";
+import { Paper, Stack, type SxProps } from "@mui/material";
+import TaskTableBody from "./TaskTableBody/TaskTableBody";
+import TaskTableToolbar from "./TaskTableToolbar/TaskTableToolbar";
 
-const paperSx = {
+const paperSx: SxProps = {
   width: "100%",
   height: "100%",
   overflow: "hidden",
 };
 
-const tableContainerSx = {
+const stackSx: SxProps = {
   height: "100%",
-};
+  minHeight: 0,
+}
+
+const tableSx = {
+  flex: 1,
+  minHeight: 0,
+}
 
 const TaskTable = () => {
-  const { tasks } = useTableTasks();
   return (
     <>
       <Paper sx={paperSx}>
-        <TableContainer sx={tableContainerSx}>
-          <Table stickyHeader aria-label="sticky table">
-            <TaskTableHeader />
-            <TableBody>
-              {tasks.map((task) => {
-                return <TableRow key={task.id} data={task} />;
-              })}
-            </TableBody>
-          </Table>
-        </TableContainer>
+        <Stack sx={stackSx}>
+          <TaskTableToolbar />
+          <TaskTableBody sx={tableSx}/>
+        </Stack>
       </Paper>
     </>
   );

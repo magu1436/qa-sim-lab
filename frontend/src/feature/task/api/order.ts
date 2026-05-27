@@ -282,13 +282,16 @@ const convertTask = (api: TableTaskRowDataApi): TaskRow => {
   };
 };
 
+const sleep = (time: number) => new Promise((resolve) => setTimeout(resolve, time));//timeはミリ秒
+
 const order = async (input: TaskRequest): Promise<TableData> => {
   try {
     // TODO: order
     console.log("order: ", input);
+    await sleep(1000);
     return {
       tasks: testData.map(convertTask),
-      totalTasks: testData.length,
+      totalTasks: testData.length * 100,
     };
   } catch (error) {
     if (error instanceof AxiosError) {
