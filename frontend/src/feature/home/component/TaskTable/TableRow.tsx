@@ -19,7 +19,7 @@ const TaskTableRow: FC<TableRowProps> = ({ data }) => {
         <CommonCell>{data.user.name}</CommonCell>
         <DateTimeCell date={data.createdAt} />
         <CommonCell>{data.status}</CommonCell>
-        <CommonCell>{data.ratio}</CommonCell>
+        <CommonCell>{`${data.ratio}%`}</CommonCell>
         <TableCell align="center">
           <IconButton>
             <ChevronIcon />
