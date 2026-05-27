@@ -3,6 +3,7 @@ import Header from "./component/Header/Header";
 import { TableTaskProvider } from "./component/TableTaskContext";
 import TaskTable from "./component/TaskTable/TaskTable";
 import { TaskRequestProvider } from "./component/TaskRequestContext";
+import TaskFilterPanel from "./component/TaskFilterPanel/TaskFilterPanel";
 
 const Home = () => {
   const sx: SxProps = {
@@ -11,16 +12,19 @@ const Home = () => {
   };
   return (
     <>
-      <Stack sx={sx}>
-        <CssBaseline>
+      <CssBaseline>
+        <Stack sx={sx}>
           <Header />
           <TaskRequestProvider>
-            <TableTaskProvider>
-              <TaskTable />
-            </TableTaskProvider>
+            <Stack direction={"row"} sx={{ flex: 1, padding: 2, minHeight: 0 }} spacing={1}>
+              <TaskFilterPanel />
+              <TableTaskProvider>
+                <TaskTable />
+              </TableTaskProvider>
+            </Stack>
           </TaskRequestProvider>
-        </CssBaseline>
-      </Stack>
+        </Stack>
+      </CssBaseline>
     </>
   );
 };

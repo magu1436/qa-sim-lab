@@ -1,4 +1,5 @@
 export type Status = "QUEUED" | "PREPARING" | "RUNNING" | "COMPLETED" | "FAILED" | "CANCELED" | "ANALYZING";
+export const ALL_STATUS: readonly Status[] = ["QUEUED", "PREPARING", "RUNNING", "COMPLETED", "FAILED", "CANCELED", "ANALYZING"];
 
 export type TaskRowUser = {
   name: string;
