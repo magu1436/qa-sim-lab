@@ -1,63 +1,47 @@
-import useTaskRequest from "@/feature/task/hook/useTaskRequest";
-import { InputLabel, Stack, TextField, type SxProps } from "@mui/material";
+import { InputLabel, Stack, type SxProps } from "@mui/material";
 import { KeyboardDoubleArrowDown } from "@mui/icons-material";
-import { useCallback, useState, type FC } from "react";
+import { LocalizationProvider } from "@mui/x-date-pickers";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import "dayjs/locale/ja";
+import { useCallback, type FC } from "react";
+import type { Dayjs } from "dayjs";
+
+import useTaskRequest from "@/feature/task/hook/useTaskRequest";
+import DateInput from "./DateInput";
 
 type TaskCreatedAtRangeFilter = {
   sx?: SxProps;
 };
 
 const TaskCreatedAtRangeFilter: FC<TaskCreatedAtRangeFilter> = ({ sx }) => {
-  const [starthelperText, setStartHelperText] = useState<string | null>(null);
-  const [endhelperText, setEndHelperText] = useState<string | null>(null);
   const { taskRequest, setTaskRequest } = useTaskRequest();
 
-  const handleStartBlur = useCallback(
-    (e: React.FocusEvent<HTMLInputElement>) => {
-      let value: Date | null = e.target.value.trim() ? new Date(e.target.value.trim()) : null;
-      if (value && isNaN(value.getDate())) {
-        setStartHelperText("入力された日付が不正です");
-        return;
-      }
-      if (value == taskRequest.dateStart) return;
-      setTaskRequest((prev) => ({ ...prev, dateStart: value }));
+  const handleStartAccept = useCallback(
+    (newValue: Dayjs | null) => {
+      const date = newValue ? newValue.toDate() : null;
+      if (date == taskRequest.dateStart) return;
+      setTaskRequest((prev) => ({ ...prev, dateStart: date }));
     },
-    [setTaskRequest, setStartHelperText],
+    [taskRequest, setTaskRequest],
   );
-  const handleEndBlur = useCallback(
-    (e: React.FocusEvent<HTMLInputElement>) => {
-      let value: Date | null = e.target.value.trim() ? new Date(e.target.value.trim()) : null;
-      if (value && isNaN(value.getDate())) {
-        setEndHelperText("入力された日付が不正です");
-        return;
-      }
-      if (value == taskRequest.dateEnd) return;
-      setTaskRequest((prev) => ({ ...prev, dateEnd: value }));
+  const handleEndAccept = useCallback(
+    (newValue: Dayjs | null) => {
+      const date = newValue ? newValue.toDate() : null;
+      if (date == taskRequest.dateEnd) return;
+      setTaskRequest((prev) => ({ ...prev, dateEnd: date }));
     },
-    [setTaskRequest, setEndHelperText, taskRequest],
+    [setTaskRequest, taskRequest],
   );
 
   return (
-    <>
-      <Stack direction={"column"} sx={{ alignItems: "center" }}>
+    <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale={"ja"}>
+      <Stack direction={"column"} sx={{ alignItems: "center" }} spacing={1}>
         <InputLabel>日付指定</InputLabel>
-        <TextField
-          sx={sx}
-          type={"date"}
-          onBlur={handleStartBlur}
-          helperText={starthelperText}
-          error={starthelperText !== null}
-        />
+        <DateInput onAccept={handleStartAccept} sx={sx} />
         <KeyboardDoubleArrowDown />
-        <TextField
-          sx={sx}
-          type={"date"}
-          onBlur={handleEndBlur}
-          helperText={endhelperText}
-          error={endhelperText !== null}
-        />
+        <DateInput onAccept={handleEndAccept} sx={sx} />
       </Stack>
-    </>
+    </LocalizationProvider>
   );
 };
 
