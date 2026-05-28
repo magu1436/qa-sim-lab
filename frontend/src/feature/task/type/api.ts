@@ -1,4 +1,5 @@
 import type { Status } from "./table";
+import type { DevelopTimeMethod } from "./task";
 
 export type TableTaskInfoUserApi = {
   name: string;
@@ -30,4 +31,24 @@ export type TaskOrderInputApi = {
   date_start: string | null;
   date_end: string | null;
   status: Status | null;
+};
+
+export type TaskPostRequest = {
+  task_name: string | null;
+  problem_name: string;
+  dt: number;
+  tau: number;
+  b0: number;
+  threads: number;
+  develop_time_method: DevelopTimeMethod;
+  memo: string | null;
+  input_file: File;
+};
+
+export type TaskPostOutput = {
+  id: number;
+  min_values: {
+    state: number;
+    value: number;
+  }[];
 };

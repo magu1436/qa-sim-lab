@@ -1,0 +1,1 @@
+export type DevelopTimeMethod = "NORMAL" | "WARP" | "QUADRATIC_WARP" | "AUTO";
