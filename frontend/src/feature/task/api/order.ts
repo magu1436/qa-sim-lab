@@ -6,6 +6,7 @@ import InvalidRangeError from "../error/order/InvalidRangeError";
 import InvalidStatusError from "../error/order/InvalidStatusError";
 import type { TableData, TaskRequest, TaskRow } from "../type/table";
 import type { TableTaskRowDataApi } from "../type/api";
+import { sleep } from "@/util/sleep";
 
 const testData: TableTaskRowDataApi[] = [
   {
@@ -281,8 +282,6 @@ const convertTask = (api: TableTaskRowDataApi): TaskRow => {
     problemName: api.problem_name,
   };
 };
-
-const sleep = (time: number) => new Promise((resolve) => setTimeout(resolve, time));//timeはミリ秒
 
 const order = async (input: TaskRequest): Promise<TableData> => {
   try {

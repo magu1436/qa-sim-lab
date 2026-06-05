@@ -11,6 +11,7 @@ import LackOfValueError from "../error/task/LackOfValueError";
 import ProblemNameRequiredError from "../error/task/ProblemNameRequiredError";
 import UnauthorizedError from "../error/task/UnauthorizedError";
 import type { TaskPostOutput, TaskPostRequest } from "../type/api";
+import { sleep } from "@/util/sleep";
 
 export default class TaskApi {
   static async post(request: TaskPostRequest): Promise<TaskPostOutput> {
@@ -30,7 +31,8 @@ export default class TaskApi {
       }
       formData.append("input_file", request.input_file);
 
-      console.log(`task/post: ${request}`);
+      console.log(`task/post:`, request);
+      await sleep(1000);
       return {
         id: 1,
         min_values: [{ state: 1, value: 0.221 }, { state: 6, value: 0.001 }, { state: 2, value: 0 }],

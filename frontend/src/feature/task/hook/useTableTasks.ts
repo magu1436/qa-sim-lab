@@ -1,7 +1,7 @@
 import { TableTaskContext } from "@/feature/home/component/TableTaskContext";
 import { useContext } from "react";
 
-const iseTableTasks = () => {
+const useTableTasks = () => {
   const val = useContext(TableTaskContext);
   if (val === null) {
     throw new Error("useTableTasks must be used within a TableTasksProvider");
@@ -9,4 +9,4 @@ const iseTableTasks = () => {
   return val;
 };
 
-export default iseTableTasks;
+export default useTableTasks;
