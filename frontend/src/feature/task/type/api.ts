@@ -52,3 +52,43 @@ export type TaskPostOutput = {
     value: number;
   }[];
 };
+
+export interface InputFileOutput {
+  id: number;
+  size_bytes: number;
+  element_nums: number;
+}
+
+export interface TaskConfigOutput {
+  dt: number;
+  tau: number;
+  b0: number;
+  threads: number;
+  develop_time_method: DevelopTimeMethod;
+  input_file: InputFileOutput | null;
+}
+
+export interface TaskGetOutput {
+  id: number;
+  problem_name: string;
+  name: string | null;
+  memo: string | null;
+  config: TaskConfigOutput;
+}
+
+export interface TaskPatchInput {
+  id: number;
+  problem_name?: string;
+  name?: string;
+  memo?: string;
+  status?: Status;
+}
+
+export interface TaskConfigPatchInput {
+  task_id: number;
+  dt?: number;
+  tau?: number;
+  b0?: number;
+  threads?: number;
+  develop_time_method?: DevelopTimeMethod;
+}
