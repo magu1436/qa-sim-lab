@@ -31,9 +31,8 @@
 また、アカウントの削除を行うこともできる。
 
 # モデル
-本アプリケーションでは、Djangoのカスタム認証機構を利用する。  
-ユーザー情報はDjangoのカスタムUserモデルとして定義し、学生証番号をログインIDとして扱う。  
-以下は概念モデルである。モデルはDjangoが構築するため、実際のものとは異なることに注意。  
+ユーザー情報は通常のActive Recordモデル `User` として定義し、学生証番号 `student_id` をログインIDとして扱う。  
+物理テーブル名は `users` とし、DBスキーマの実装上の正は Rails Active Record Migration とする。以下のER図は物理テーブルの主要項目、モデル表・クラス図は属性を示す。制約は共通仕様の共有DB契約に従う。
 ```mermaid
 ---
 title: DB設計(概念)
@@ -45,7 +44,7 @@ users {
 	VARCHAR(8) student_id
 	VARCHAR(256) mail
 	VARCHAR(32) name
-	VARCHAR(128) password
+	VARCHAR(128) password_digest
 }
 ```
 
@@ -55,7 +54,7 @@ users {
 | student_id | string | required, unique, max_length=8 | 学生証番号                  |
 | mail       | string | required, max_length=254       | メールアドレス                |
 | name       | string | required, max_length=32        | 表示名                    |
-| password   | string | required, max_length=128       | Djangoによりハッシュ化されたパスワード |
+| password_digest | string | required, max_length=128 | bcryptでハッシュ化されたパスワード。平文は保存しない |
 
 ```mermaid
 ---
@@ -68,7 +67,7 @@ class User {
 	+str student_id
 	+str mail
 	+str name
-	+str password
+	+str password_digest
 }
 
 ```
@@ -77,7 +76,17 @@ class User {
 パスワードには以下の制限が含まれる。  
 - 6文字以上64文字未満
 - 半角文字のみ
-パスワードはDjangoの認証機構によってハッシュ化された文字列を保存する。  
+パスワード管理には `bcrypt` と `has_secure_password` を利用し、ハッシュ化した値を `password_digest` に保存する。APIで受け取る `password`、`current_password`、`new_password` は入力用であり、DBに平文保存しない。`password_digest` はAPIレスポンスに含めない。
+
+# 認証とSession
+WebブラウザはSession Cookie認証を利用する。`student_id` で取得した有効な `User` に対してパスワードを検証し、認証成功後はRails Sessionに `user_id` を保存する。以降のリクエストではCookieを通じてSessionを参照し、`user_id` から `current_user` を特定する。サインアップ成功時も同様にSessionを確立する。ログアウト時およびユーザー無効化時はSessionを破棄する。既存Sessionが残っていても、無効化されたユーザーを `current_user` として認証しない。
+
+```text
+student_id + password → User認証 → Sessionにuser_idを保存
+以降のリクエスト → Session → current_user → 権限判定・アプリケーション処理
+```
+
+Controllerや業務処理はSessionを直接参照せず、認証処理が提供する `current_user` に依存する。将来、CLIからのタスク作成・状態確認・結果取得等に向けたAPI Token認証を追加する場合も、同じ `current_user` と権限判定を利用できる構成とする。API Token認証とCLIはMVP対象外であり、Token発行APIは今回追加しない。JWTは現時点では採用せず、将来方式としても固定しない。
 
 # ユーザー削除の扱い
 知見の共有の原理から、ユーザーの削除を行う場合は、ユーザーの無効化を行うこととする。  
@@ -119,7 +128,7 @@ class User {
 
 ## ログインAPI
 ログインを行うためのAPI。  
-受け取った値をもとにデータベースを照合して `User` データを取得し、ユーザーをログイン状態にする。  
+`student_id` で `User` を取得し、`has_secure_password` によって入力パスワードを検証する。認証成功後はRails Sessionに `user_id` を保存し、ユーザーをログイン状態にする。  
 
 - URL: `api/user/login`  
 - メソッド: `POST`
@@ -166,13 +175,30 @@ class User {
 | :--------------- | ---- | --------------- | --- |
 | 401 Unauthorized | (なし) | 未ログイン状態でアクセスされた |     |
 
-# ユーザー情報取得API
-ユーザー情報を取得するためのAPI
+## ユーザー情報取得API
+ユーザー情報を取得するためのAPI。  
+フロントエンドがユーザーのログイン状況を把握するためにも使用される。  
 
 - URL: `api/user/me`
 - メソッド: `GET`
 
-(加筆予定)
+### 成功時
+ステータスコード: `200 OK`
+
+```json
+{
+	id: 0,
+	student_id: "0CDIM0000",
+	mail: "0CDIM0000@tokai.ac.jp",
+	name: "東海太郎"
+}
+```
+
+### 失敗時
+| ステータス            | コード           | 発生要因                 | 備考  |
+| ---------------- | ------------- | -------------------- | --- |
+| 401 Unauthorized | `UAUTHORIZED` | ユーザーのログインセッションが存在しない |     |
+
 
 ## ユーザー情報更新API
 ユーザー情報(**パスワードを除く**)の更新を行うためのAPI。  

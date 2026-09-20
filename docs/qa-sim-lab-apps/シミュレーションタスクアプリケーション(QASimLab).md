@@ -135,7 +135,7 @@
 - `CANCELED`
 - `FAILED`
 
-`PREPARING`、`RUNNING`、`COMPLETED` のタスクは削除できないものとする。  
+`PREPARING`、`RUNNING`、`ANALYZING`、`COMPLETED`、`ANALYSIS_FAILED` のタスクは削除できないものとする。  
 実行済みタスクは研究室内の知見として残す価値があるため、原則として削除不可とする。
 
 タスクを削除すると、以下の処理を行う。
@@ -156,7 +156,7 @@
 
 # モデル
 以下に、各種モデルの定義について記述する。  
-本アプリケーションでは、基本的に Django のモデル機構を利用してモデルを作成する。したがって、以下のモデルは概念モデルであり、実際のDjangoモデルとは一部異なる可能性がある。
+バックエンドのモデルは Active Record で定義する。以下のER図はPostgreSQLの物理テーブル、モデル表・クラス図は属性と関連を表す。DBスキーマの実装上の正は Rails Active Record Migration とし、共通仕様の共有DB契約に従う。
 
 タスクは、タスクのジョブ管理を行うためのメタデータと、シミュレーション設定の二つに大別できる。これらを二つのモデルとして分割し、1対1の関係とする。  
 また、シミュレーションの入力ファイルのメタデータを保持するモデルを別途用意する。
@@ -173,7 +173,9 @@
 | `QUEUED` | 実行待ち状態。タスク作成日時順に実行されるのを待っている状態 |
 | `PREPARING` | 実行準備中。対角項データや設定を読み取り、GPU計算環境を作成している状態 |
 | `RUNNING` | 実行中。実行準備が終了し、実際に時間発展を行っている状態 |
-| `COMPLETED` | 実行完了。正常にシミュレーションが終了し、結果が保存されている状態 |
+| `ANALYZING` | 分析待ち・分析中。シミュレーションが成功し、結果ファイルと実行結果メタデータが保存されている状態 |
+| `COMPLETED` | シミュレーション実行と標準分析の両方が完了した状態 |
+| `ANALYSIS_FAILED` | シミュレーションは成功したが、結果分析に失敗した状態 |
 | `FAILED` | 実行失敗。何らかのエラーによってシミュレーションが失敗した状態 |
 | `CANCELED` | 実行キャンセル。未実行だが、キューから外されている状態 |
 
@@ -199,10 +201,10 @@ users {
     VARCHAR student_id
     VARCHAR mail
     VARCHAR name
-    VARCHAR password
+    VARCHAR password_digest
 }
 
-simulation_task {
+simulation_tasks {
     INTEGER id PK
     INTEGER user_id FK
     TIMESTAMP created_at
@@ -213,7 +215,7 @@ simulation_task {
     TEXT memo
 }
 
-simulation_config {
+simulation_configs {
     INTEGER id PK
     INTEGER task_id FK
     REAL dt
@@ -223,7 +225,7 @@ simulation_config {
     VARCHAR develop_time_method
 }
 
-simulation_input_file {
+simulation_input_files {
     INTEGER id PK
     INTEGER config_id FK
     VARCHAR file_path
@@ -231,9 +233,9 @@ simulation_input_file {
     INTEGER element_nums
 }
 
-users ||--o{ simulation_task : creates
-simulation_task ||--|| simulation_config : has
-simulation_config ||--|| simulation_input_file : has
+users ||--o{ simulation_tasks : creates
+simulation_tasks ||--|| simulation_configs : has
+simulation_configs ||--|| simulation_input_files : has
 ```
 
 ## SimulationTask
@@ -242,7 +244,7 @@ simulation_config ||--|| simulation_input_file : has
 | id           | int      | PK, Auto Increment           | シミュレーションタスクID                                                                 |
 | user         | User     | FK, required                 | タスクを作成したユーザー                                                                  |
 | created_at   | datetime | required                     | タスク作成日時                                                                       |
-| status       | string   | required, choices            | タスクの進行状況。`QUEUED`、`PREPARING`、`RUNNING`、`COMPLETED`、`FAILED`、`CANCELED` のいずれか |
+| status       | string   | required, choices            | タスクの進行状況。`QUEUED`、`CANCELED`、`PREPARING`、`RUNNING`、`ANALYZING`、`COMPLETED`、`FAILED`、`ANALYSIS_FAILED` のいずれか |
 | ratio        | int      | required, 0以上100以下           | シミュレーション進行割合。0〜100の整数                                                         |
 | problem_name | string   | required, max_length=128     | 解決対象の最適化問題名。検索・分類に利用する自由記述項目                                                  |
 | task_name    | string   | max_length=64, blank allowed | ユーザーがタスクを識別するための任意名                                                           |
@@ -309,6 +311,10 @@ SimulationConfig "1" -- "1" SimulationInputFile
 ```
 
 # 対角項データの扱い
+対角項の要素型は `f64` とする。バイナリ表現は IEEE 754 binary64、1要素8 byte、バイトオーダーは little endian とし、ファイルサイズは `element_nums * 8 byte` とする。CSVの各値もf64として読み取り、同じ形式のバイナリへ変換する。Rust Workerもこの形式をf64として読み込む。
+
+バックエンドのCSV読み込みにはRuby標準の `CSV`、バイナリ変換には `Array#pack` / `String#unpack` を利用し、ホスト環境に依存せず上記のバイトオーダーを維持する。
+
 対角項データは、サーバーに直接ファイルとして保存する。  
 シミュレーションに関連するファイルは、共通仕様に従い `{root}/bin/{task_id}/` 配下に保存する。`{root}` は環境変数から読み取る。
 
@@ -415,7 +421,7 @@ SimulationConfig "1" -- "1" SimulationInputFile
 | 400 | `INVALID_FILE_FORMAT` | 対角項データファイルの形式が `.csv` または `.bin` でない |  |
 | 400 | `INVALID_DEVELOP_TIME_METHOD` | 未定義の時間発展メソッドが指定された |  |
 | 400 | `INVALID_ELEMENT_NUMS` | 対角項の要素数が0、または2のべき乗でない |  |
-| 400 | `INVALID_FILE_CONTENT` | 対角項データを `i32` として解釈できない |  |
+| 400 | `INVALID_FILE_CONTENT` | 対角項データを `f64` として解釈できない、またはバイナリサイズが8 byte単位でない |  |
 | 401 Unauthorized | `UNAUTHORIZED` | 未ログイン状態でアクセスされた |  |
 | 500 Internal Server Error | `FILE_SAVE_FAILED` | ファイル保存に失敗した | ログを記録する |
 
@@ -521,7 +527,7 @@ IDを用いてタスクデータを取得するためのAPI。
         "develop_time_method": "AUTO",
         "input_file": {
             "id": 1,
-            "size_bytes": 8388608,
+            "size_bytes": 16777216,
             "element_nums": 2097152
         }
     }
@@ -613,7 +619,7 @@ IDを用いてタスクデータを取得するためのAPI。
 | ステータス | コード | 発生要因 | 備考 |
 | --- | --- | --- | --- |
 | 400 Bad Request | `INVALID_TASK_ID` | タスクIDが整数として解釈できない |  |
-| 400 | `TASK_CANNOT_DELETE` | 削除できない状態のタスクを削除しようとした | `PREPARING`、`RUNNING`、`COMPLETED` は削除不可 |
+| 400 | `TASK_CANNOT_DELETE` | 削除できない状態のタスクを削除しようとした | `QUEUED`、`CANCELED`、`FAILED` 以外は削除不可 |
 | 401 Unauthorized | `UNAUTHORIZED` | 未ログイン状態でアクセスされた |  |
 | 403 Forbidden | `FORBIDDEN` | 自分以外が作成したタスクを削除しようとした |  |
 | 404 Not Found | `TASK_NOT_FOUND` | 指定されたIDのタスクが存在しない |  |
@@ -642,7 +648,7 @@ IDを用いてタスクデータを取得するためのAPI。
     "develop_time_method": "AUTO",
     "input_file": {
         "id": 1,
-        "size_bytes": 8388608,
+        "size_bytes": 16777216,
         "element_nums": 2097152
     }
 }
@@ -668,14 +674,14 @@ IDを用いてタスクデータを取得するためのAPI。
 ### リクエスト
 更新が必要な値のみ渡してよい。
 
-| 項目 | 型 | 必須 | 説明 |
-| --- | --- | --- | --- |
-| task_id | int | 必須 | 更新対象のタスクID |
-| dt | float | 任意 | 単位時間変化量 |
-| tau | float | 任意 | 終端時間 |
-| b0 | float | 任意 | 初期磁場 |
-| threads | int | 任意 | GPU計算における1ブロックあたりのスレッド数 |
-| develop_time_method | string | 任意 | 時間発展メソッド |
+| 項目                  | 型      | 必須  | 説明                      |
+| ------------------- | ------ | --- | ----------------------- |
+| task_id             | int    | 必須  | 更新対象のタスクID              |
+| dt                  | float  | 任意  | 単位時間変化量                 |
+| tau                 | float  | 任意  | 終端時間                    |
+| b0                  | float  | 任意  | 初期磁場                    |
+| threads             | int    | 任意  | GPU計算における1ブロックあたりのスレッド数 |
+| develop_time_method | string | 任意  | 時間発展メソッド                |
 
 ```json
 {
@@ -692,18 +698,18 @@ IDを用いてタスクデータを取得するためのAPI。
 ステータスコード: 204 No Content
 
 ### 失敗時
-| ステータス | コード | 発生要因 | 備考 |
-| --- | --- | --- | --- |
-| 400 Bad Request | `LACK_OF_VALUE` | `task_id` が指定されていない |  |
-| 400 | `INVALID_TASK_ID` | タスクIDが整数として解釈できない |  |
-| 400 | `INVALID_PARAMETER` | `dt`、`tau`、`b0` などの数値が不正 |  |
-| 400 | `INVALID_THREADS` | スレッド数が2のべき乗でない、または0以下 |  |
-| 400 | `INVALID_DEVELOP_TIME_METHOD` | 未定義の時間発展メソッドが指定された |  |
-| 400 | `TASK_CANNOT_UPDATE` | 更新できない状態のタスクを更新しようとした | `PREPARING`、`RUNNING`、`COMPLETED`、`FAILED` は更新不可 |
-| 401 Unauthorized | `UNAUTHORIZED` | 未ログイン状態でアクセスされた |  |
-| 403 Forbidden | `FORBIDDEN` | 自分以外が作成したタスクを更新しようとした |  |
-| 404 Not Found | `TASK_NOT_FOUND` | 指定されたIDのタスクが存在しない |  |
-| 404 | `CONFIG_NOT_FOUND` | 指定されたタスクに紐付くコンフィグが存在しない | 通常は発生しない想定 |
+| ステータス            | コード                           | 発生要因                     | 備考                                               |
+| ---------------- | ----------------------------- | ------------------------ | ------------------------------------------------ |
+| 400 Bad Request  | `LACK_OF_VALUE`               | `task_id` が指定されていない      |                                                  |
+| 400              | `INVALID_TASK_ID`             | タスクIDが整数として解釈できない        |                                                  |
+| 400              | `INVALID_PARAMETER`           | `dt`、`tau`、`b0` などの数値が不正 |                                                  |
+| 400              | `INVALID_THREADS`             | スレッド数が2のべき乗でない、または0以下    |                                                  |
+| 400              | `INVALID_DEVELOP_TIME_METHOD` | 未定義の時間発展メソッドが指定された       |                                                  |
+| 400              | `TASK_CANNOT_UPDATE`          | 更新できない状態のタスクを更新しようとした    | `QUEUED`、`CANCELED` 以外は更新不可 |
+| 401 Unauthorized | `UNAUTHORIZED`                | 未ログイン状態でアクセスされた          |                                                  |
+| 403 Forbidden    | `FORBIDDEN`                   | 自分以外が作成したタスクを更新しようとした    |                                                  |
+| 404 Not Found    | `TASK_NOT_FOUND`              | 指定されたIDのタスクが存在しない        |                                                  |
+| 404              | `CONFIG_NOT_FOUND`            | 指定されたタスクに紐付くコンフィグが存在しない  | 通常は発生しない想定                                       |
 
 ## 対角項データ取得API
 指定したシミュレーション設定に紐付く対角項データを取得するためのAPI。  
@@ -758,7 +764,7 @@ Content-Type: `application/octet-stream`
 {
     "id": 1,
     "config_id": 1,
-    "size_bytes": 8388608,
+    "size_bytes": 16777216,
     "element_nums": 2097152
 }
 ```
@@ -770,8 +776,8 @@ Content-Type: `application/octet-stream`
 | 400 | `INVALID_CONFIG_ID` | コンフィグIDが整数として解釈できない |  |
 | 400 | `INVALID_FILE_FORMAT` | 対角項データファイルの形式が `.csv` または `.bin` でない |  |
 | 400 | `INVALID_ELEMENT_NUMS` | 対角項の要素数が0、または2のべき乗でない |  |
-| 400 | `INVALID_FILE_CONTENT` | 対角項データを `i32` として解釈できない |  |
-| 400 | `TASK_CANNOT_UPDATE` | 更新できない状態のタスクの入力ファイルを置き換えようとした | `PREPARING`、`RUNNING`、`COMPLETED`、`FAILED` は更新不可 |
+| 400 | `INVALID_FILE_CONTENT` | 対角項データを `f64` として解釈できない、またはバイナリサイズが8 byte単位でない |  |
+| 400 | `TASK_CANNOT_UPDATE` | 更新できない状態のタスクの入力ファイルを置き換えようとした | `QUEUED`、`CANCELED` 以外は更新不可 |
 | 401 Unauthorized | `UNAUTHORIZED` | 未ログイン状態でアクセスされた |  |
 | 403 Forbidden | `FORBIDDEN` | 自分以外が作成したタスクの入力ファイルを置き換えようとした |  |
 | 404 Not Found | `CONFIG_NOT_FOUND` | 指定されたIDのコンフィグが存在しない |  |
@@ -786,13 +792,16 @@ stateDiagram-v2
     [*] --> QUEUED
     QUEUED --> CANCELED: ユーザーがキャンセル
     CANCELED --> QUEUED: ユーザーが再キュー
-    QUEUED --> PREPARING: Workerが取得
+    QUEUED --> PREPARING: SimulationWorkerが取得
     PREPARING --> RUNNING: 準備完了
     PREPARING --> FAILED: 準備失敗
-    RUNNING --> COMPLETED: 実行成功
+    RUNNING --> ANALYZING: SimulationWorkerによる実行成功・結果保存完了
+    ANALYZING --> COMPLETED: AnalysisWorkerによる分析成功
+    ANALYZING --> ANALYSIS_FAILED: AnalysisWorkerによる分析失敗
     RUNNING --> FAILED: 実行失敗
     COMPLETED --> [*]
     FAILED --> [*]
+    ANALYSIS_FAILED --> [*]
 ```
 
 ユーザー操作によって許可される状態遷移は以下のみとする。
@@ -804,15 +813,19 @@ stateDiagram-v2
 
 Worker によって許可される状態遷移は以下とする。
 
-| 変更前 | 変更後 | 説明 |
-| --- | --- | --- |
-| `QUEUED` | `PREPARING` | Worker がタスクを取得した |
-| `PREPARING` | `RUNNING` | 実行準備が完了した |
-| `PREPARING` | `FAILED` | 実行準備に失敗した |
-| `RUNNING` | `COMPLETED` | 実行が正常終了した |
-| `RUNNING` | `FAILED` | 実行中に失敗した |
+| 変更前 | 変更後 | 実行者 | 説明 |
+| --- | --- | --- | --- |
+| `QUEUED` | `PREPARING` | SimulationWorker | タスクを取得した |
+| `PREPARING` | `RUNNING` | SimulationWorker | 実行準備が完了した |
+| `PREPARING` | `FAILED` | SimulationWorker | 実行準備に失敗した |
+| `RUNNING` | `ANALYZING` | SimulationWorker | 実行が正常終了し、結果保存が完了した |
+| `RUNNING` | `FAILED` | SimulationWorker | 実行中に失敗した |
+| `ANALYZING` | `COMPLETED` | AnalysisWorker | 標準分析が完了した |
+| `ANALYZING` | `ANALYSIS_FAILED` | AnalysisWorker | 分析に失敗した |
 
 # 権限
+認証必須APIでは共通仕様のSession Cookie認証で解決した `current_user` を用いて権限を判定する。将来のAPI Token認証でも同じ判定を利用する。以下の公開APIと作成者限定操作の範囲は維持する。
+
 | 操作 | 未ログインユーザー | ログインユーザー | 作成者本人 |
 | --- | --- | --- | --- |
 | タスク一覧取得 | 可 | 可 | 可 |
@@ -849,7 +862,7 @@ diagonal_vector.bin
 
 ## 命名方針
 APIレスポンスのJSONキーは、フロントエンドの TypeScript との相性を考え、snake_case で統一する。  
-Djangoモデルのフィールド名も snake_case で統一する。
+Active Recordモデルの属性名およびDBカラム名も snake_case で統一する。物理テーブル名は複数形、モデル名は単数形PascalCaseとする。
 
 最適化問題名は `problem_name`、個別タスク名は `name` として管理する。`problem_name` は検索・分類用、`name` は個別実行の識別用であり、用途を分離する。
 
